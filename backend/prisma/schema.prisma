@@ -1,0 +1,140 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email  String   @unique
+  name         String
+  isActive     Boolean  @default(true)
+  otp          String?
+  otpExpires   DateTime?
+  
+  // Relations: One user owns many tractors/drivers/etc.
+  tractors     Tractor[]
+  drivers      Driver[]
+  mukadams     Mukadam[]
+  expenses     Expense[]
+  trips        Trip[]
+
+  defaultDieselRate  Float     @default(72.0)
+  defaultVahatukRateShort  Float @default(200.0) // For ≤ 25km
+  defaultVahatukRateLong   Float @default(300.0) // For > 25km
+  defaultTodniRate   Float     @default(365.0)
+  
+  createdAt    DateTime @default(now())
+}
+
+// 2. THE ASSETS
+model Tractor {
+  id          Int       @id @default(autoincrement())
+  plateNumber String    @unique
+  modelName   String?
+
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  
+  driver      Driver?
+  mukadam     Mukadam?
+  
+  trips       Trip[]
+  expenses    Expense[]
+  
+  createdAt   DateTime  @default(now())
+}
+
+// 3. THE HUMAN RESOURCES
+model Driver {
+  id          Int       @id @default(autoincrement())
+  name        String
+  phone       String?
+
+  userId    Int?      // Link to User
+  user      User?     @relation(fields: [userId], references: [id])
+  
+  tractorId   Int?      @unique
+  tractor     Tractor?  @relation(fields: [tractorId], references: [id])
+
+  expenses  Expense[]
+  
+  createdAt   DateTime  @default(now())
+}
+
+model Mukadam {
+  id          Int       @id @default(autoincrement())
+  name        String
+  phone       String?
+
+  userId    Int?      // Link to User
+  user      User?     @relation(fields: [userId], references: [id])
+  
+  tractorId   Int?      @unique
+  tractor     Tractor?  @relation(fields: [tractorId], references: [id])
+
+  expenses  Expense[]
+
+  createdAt   DateTime  @default(now())
+}
+
+// 4. THE CORE TRANSACTION (Trip)
+model Trip {
+  id                Int       @id @default(autoincrement())
+  date              DateTime  @default(now())
+  slipNumber        String
+  
+  netWeight         Float
+  distance          Float @default(0.0)
+  dieselLiters      Float
+  
+  cuttingIncome     Float
+  transportIncome   Float
+  commission        Float     @default(2000.0)
+  dieselCost        Float
+  netTripProfit     Float
+  
+  tractorId        Int
+  tractor          Tractor   @relation(fields: [tractorId], references: [id])
+  
+  userId           Int
+  user             User      @relation(fields: [userId], references: [id])
+  
+  driverId          Int?
+  mukadamId         Int?
+
+  createdAt         DateTime  @default(now())
+}
+
+// 5. THE FINANCIAL ENGINE
+enum ExpenseType {
+  MAINTENANCE
+  DRIVER_AMOUNT
+  MUKADAM_AMOUNT
+}
+
+model Expense {
+  id          Int         @id @default(autoincrement())
+  date        DateTime    @default(now())
+  amount      Float
+  type        ExpenseType
+  description String?
+  tractorId   Int
+  tractor     Tractor     @relation(fields: [tractorId], references: [id])
+
+  userId      Int
+  user        User         @relation(fields: [userId], references: [id])
+
+  driverId    Int?
+  driver      Driver?     @relation(fields: [driverId], references: [id])
+
+  mukadamId   Int?
+  mukadam     Mukadam?    @relation(fields: [mukadamId], references: [id])
+
+  createdAt   DateTime    @default(now())
+}
