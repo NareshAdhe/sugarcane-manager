@@ -36,7 +36,7 @@ exports.login = async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
-      return res.status(404).json({ error: 'या ईमेलवर कोणतेही खाते नाही. कृपया साइनअप करा.' });
+      return res.json({ success: false, message: 'या ईमेलवर कोणतेही खाते नाही. कृपया साइनअप करा.' });
     }
 
     await prisma.user.update({
@@ -46,7 +46,7 @@ exports.login = async (req, res) => {
 
     return await sendOTPEmail(user.name, email, otp, res);
   } catch (error) {
-    res.status(500).json({ error: 'लॉगिन करताना त्रुटी आली.' });
+    res.json({ success: false, message: error.message });
   }
 };
 
