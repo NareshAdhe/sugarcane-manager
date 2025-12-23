@@ -4,9 +4,7 @@
     "slug": "tractor-manager",
     "version": "1.0.0",
     "orientation": "portrait",
-    
     "icon": "./assets/images/icon.png",
-    
     "scheme": "mobileapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -20,7 +18,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.naresh.tractormanager" 
+      "package": "com.naresh.tractormanager"
     },
     "web": {
       "output": "static",
@@ -44,6 +42,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a955bf58-9495-47ca-adb0-56a9ddefe77f"
+      }
     }
   }
 }
