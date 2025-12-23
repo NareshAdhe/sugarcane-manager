@@ -23,6 +23,7 @@ model User {
   mukadams     Mukadam[]
   expenses     Expense[]
   trips        Trip[]
+  karkhanas    Karkhana[]
 
   defaultDieselRate  Float     @default(72.0)
   defaultVahatukRateShort  Float @default(200.0) // For ≤ 25km
@@ -30,6 +31,23 @@ model User {
   defaultTodniRate   Float     @default(365.0)
   
   createdAt    DateTime @default(now())
+}
+
+model Karkhana {
+  id                Int    @id @default(autoincrement())
+  name              String
+  todniCommRate     Float
+  vahatukCommRate   Float
+  todniRate         Float
+  distanceThreshold Float    @default(25)
+  vahatukRateShort  Float
+  vahatukRateLong   Float
+  dieselRate        Float
+
+  userId            Int
+  user              User      @relation(fields: [userId], references: [id])
+  tractors          Tractor[]
+  createdAt         DateTime  @default(now())
 }
 
 // 2. THE ASSETS
@@ -40,6 +58,9 @@ model Tractor {
 
   userId       Int
   user         User     @relation(fields: [userId], references: [id])
+
+  karkhanaId   Int
+  karkhana     Karkhana @relation(fields: [karkhanaId], references: [id])
   
   driver      Driver?
   mukadam     Mukadam?
@@ -95,7 +116,9 @@ model Trip {
   
   cuttingIncome     Float
   transportIncome   Float
-  commission        Float     @default(2000.0)
+  cuttingCommission Float
+  transportCommission Float
+
   dieselCost        Float
   netTripProfit     Float
   

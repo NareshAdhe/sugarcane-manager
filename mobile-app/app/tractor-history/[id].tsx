@@ -182,13 +182,14 @@ export default function TractorHistoryScreen() {
   const renderTrip = ({ item }: { item: any }) => {
     const tripDieselCost = item.dieselCost || 0;
     const tripNetProfit = item.netTripProfit || 0;
-    const bonusAmount = item.commission || 0;
+    const cuttingCommAmount = item.cuttingCommission || 0;
+    const transportCommAmount = item.transportCommission || 0;
 
     const { day, month, year } = formatDate(item.date);
     const todniColor = "#EF6C00";
     const vahatukColor = "#1976D2";
     const dieselColor = "#C62828";
-    const bonusColor = "#2E7D32";
+    const commissionColor = "#2E7D32";
 
     return (
       <View style={styles.card}>
@@ -291,31 +292,49 @@ export default function TractorHistoryScreen() {
                 </Text>
               </Text>
             </View>
-
-            {bonusAmount > 0 && (
-              <View style={styles.microRow}>
-                <View
-                  style={[
-                    styles.microIconBadge,
-                    { backgroundColor: bonusColor + "15" },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="gift-outline"
-                    size={14}
-                    color={bonusColor}
-                  />
-                </View>
-                <Text style={styles.microText}>
-                  बोनस:{" "}
-                  <Text style={[styles.microValue, { color: bonusColor }]}>
-                    ₹{bonusAmount}
-                  </Text>
-                </Text>
-              </View>
-            )}
           </View>
-
+          <View style={styles.incomeSection}>
+            <View style={styles.microRow}>
+              <View
+                style={[
+                  styles.microIconBadge,
+                  { backgroundColor: commissionColor + "15" },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="content-cut"
+                  size={14}
+                  color={commissionColor}
+                />
+              </View>
+              <Text style={styles.microText}>
+                तोडणी कमिशन:{" "}
+                <Text style={[styles.microValue, { color: commissionColor }]}>
+                  ₹{cuttingCommAmount}
+                </Text>
+              </Text>
+            </View>
+            <View style={styles.microRow}>
+              <View
+                style={[
+                  styles.microIconBadge,
+                  { backgroundColor: commissionColor + "15" },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="truck-fast"
+                  size={14}
+                  color={commissionColor}
+                />
+              </View>
+              <Text style={styles.microText}>
+                वाहतूक कमिशन:{" "}
+                <Text style={[styles.microValue, { color: commissionColor }]}>
+                  ₹{transportCommAmount}
+                </Text>
+              </Text>
+            </View>
+          </View>
           {item.dieselCost > 0 && (
             <View style={styles.microRow}>
               <View

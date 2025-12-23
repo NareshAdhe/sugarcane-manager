@@ -7,38 +7,35 @@ exports.getSettings = async (req, res) => {
       select: {
         name: true,
         email: true,
-        defaultDieselRate: true,
-        defaultVahatukRateShort: true,
-        defaultVahatukRateLong: true,
-        defaultTodniRate: true,
       },
     });
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: "सेटिंग्ज मिळवता आल्या नाहीत." });
+    res.status(500).json({ error: "प्रोफाइल माहिती मिळवता आली नाही." });
   }
 };
 
 exports.updateSettings = async (req, res) => {
-  const { dieselRate, vahatukRateShort, vahatukRateLong, todniRate } = req.body;
+  const { name, email } = req.body;
 
   try {
     const updatedUser = await prisma.user.update({
       where: { id: req.userId },
       data: {
-        defaultDieselRate: parseFloat(dieselRate),
-        defaultVahatukRateShort: parseFloat(vahatukRateShort),
-        defaultVahatukRateLong: parseFloat(vahatukRateLong),
-        defaultTodniRate: parseFloat(todniRate),
+        name: name,
+        email: email,
       },
     });
 
     res.status(200).json({
-      message: "सेटिंग्ज यशस्वीरित्या अपडेट झाल्या!",
-      settings: updatedUser
+      message: "प्रोफाइल यशस्वीरित्या अपडेट झाली!",
+      user: {
+        name: updatedUser.name,
+        email: updatedUser.email
+      }
     });
   } catch (error) {
-    console.error("Settings Update Error:", error);
-    res.status(500).json({ error: "सेटिंग्ज जतन करताना तांत्रिक अडचण आली." });
+    console.error("Profile Update Error:", error);
+    res.status(500).json({ error: "माहिती जतन करताना तांत्रिक अडचण आली." });
   }
 };

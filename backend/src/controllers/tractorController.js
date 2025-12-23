@@ -9,19 +9,14 @@ const getAllTractors = async (req, res) => {
         userId: userId,
       },
       include: {
-        driver: {
-          where: { userId: userId }
+        karkhana: true,
+        driver: true,
+        mukadam: true,
+        trips: {
+          orderBy: { date: "desc" }
         },
-        mukadam: {
-          where: { userId: userId }
-        },
-        trips: { 
-          where: { userId: userId },
-          orderBy: { date: "desc" } 
-        },
-        expenses: { 
-          where: { userId: userId },
-          orderBy: { date: "desc" } 
+        expenses: {
+          orderBy: { date: "desc" }
         }
       },
     });
@@ -34,7 +29,8 @@ const getAllTractors = async (req, res) => {
         id: t.id,
         plateNumber: t.plateNumber,
         modelName: t.modelName,
-        driver: t.driver, 
+        karkhana: t.karkhana,
+        driver: t.driver,
         mukadam: t.mukadam,
         trips: t.trips,
         expenses: t.expenses,
@@ -83,13 +79,13 @@ const deleteTractor = async (req, res) => {
       prisma.trip.deleteMany({ where: { tractorId: targetId } }),
       prisma.expense.deleteMany({ where: { tractorId: targetId } }),
 
-      prisma.mukadam.deleteMany({ where: { tractorId: targetId, userId: userId } }),
-      prisma.driver.deleteMany({ where: { tractorId: targetId, userId: userId } }),
-      
-      prisma.tractor.delete({ 
-        where: { 
-          id: targetId 
-        } 
+      prisma.mukadam.deleteMany({ where: { tractorId: targetId } }),
+      prisma.driver.deleteMany({ where: { tractorId: targetId } }),
+
+      prisma.tractor.delete({
+        where: {
+          id: targetId
+        }
       })
     ]);
 
@@ -101,17 +97,20 @@ const deleteTractor = async (req, res) => {
 };
 
 const createTractor = async (req, res) => {
-  const { plateNumber, modelName, driver, mukadam } = req.body;
+  const { plateNumber, modelName, driver, mukadam, karkhanaId } = req.body;
   const userId = req.userId;
+
+  if (!plateNumber || !karkhanaId || !driver?.name || !mukadam?.name) {
+    return res.status(400).json({ error: "कृपया सर्व माहिती भरा (Plate Number, Karkhana, Driver, Mukadam)" });
+  }
 
   try {
     const newTractor = await prisma.tractor.create({
       data: {
         plateNumber,
         modelName,
-        user: {
-          connect: { id: userId }
-        },
+        user: { connect: { id: userId } },
+        karkhana: { connect: { id: parseInt(karkhanaId) } },
         driver: {
           create: {
             name: driver.name,
@@ -130,28 +129,28 @@ const createTractor = async (req, res) => {
       include: {
         driver: true,
         mukadam: true,
+        karkhana: true,
       },
     });
 
     res.status(201).json(newTractor);
   } catch (error) {
     console.error("Backend Create Error:", error);
-    res.status(500).json({ error: "नवीन ट्रॅक्टर तयार करताना त्रुटी आली" });
+    res.status(500).json({ error: "Error creating tractor with Karkhana" });
   }
 };
 
 const updateTractor = async (req, res) => {
   const { id } = req.params;
-  const { plateNumber, modelName, driver, mukadam } = req.body;
+  const { plateNumber, modelName, driver, mukadam, karkhanaId } = req.body;
   const userId = req.userId;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Verify Ownership first
       const existingTractor = await tx.tractor.findFirst({
         where: { 
           id: Number(id),
-          userId: userId // Ensure User A cannot edit User B's tractor
+          userId: userId 
         }
       });
 
@@ -159,32 +158,27 @@ const updateTractor = async (req, res) => {
         throw new Error("Unauthorized or Tractor not found");
       }
 
-      // 2. Handle Driver Logic
-      if (driver.isReplacement) {
-        // Disconnect old drivers for THIS tractor
+      if (driver && driver.isReplacement) {
         await tx.driver.updateMany({
           where: { tractorId: Number(id) },
           data: { tractorId: null },
         });
-        // Create new driver linked to User
         await tx.driver.create({
           data: {
             name: driver.name,
             phone: driver.phone,
             tractorId: Number(id),
-            userId: userId, // Link to owner
+            userId: userId,
           },
         });
-      } else {
-        // Update existing driver linked to this tractor
+      } else if (driver) {
         await tx.driver.updateMany({
           where: { tractorId: Number(id) },
           data: { name: driver.name, phone: driver.phone },
         });
       }
 
-      // 3. Handle Mukadam Logic
-      if (mukadam.isReplacement) {
+      if (mukadam && mukadam.isReplacement) {
         await tx.mukadam.updateMany({
           where: { tractorId: Number(id) },
           data: { tractorId: null },
@@ -194,24 +188,24 @@ const updateTractor = async (req, res) => {
             name: mukadam.name,
             phone: mukadam.phone,
             tractorId: Number(id),
-            userId: userId, // Link to owner
+            userId: userId,
           },
         });
-      } else {
+      } else if (mukadam) {
         await tx.mukadam.updateMany({
           where: { tractorId: Number(id) },
           data: { name: mukadam.name, phone: mukadam.phone },
         });
       }
 
-      // 4. Update Tractor Details
       return await tx.tractor.update({
         where: { id: Number(id) },
         data: {
           plateNumber,
           modelName,
+          karkhanaId: karkhanaId ? Number(karkhanaId) : undefined,
         },
-        include: { driver: true, mukadam: true },
+        include: { driver: true, mukadam: true, karkhana: true },
       });
     });
 

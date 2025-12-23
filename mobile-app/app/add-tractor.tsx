@@ -8,9 +8,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   StatusBar,
+  Modal,
+  FlatList,
 } from "react-native";
 import { useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -22,16 +22,23 @@ import { useTractors } from "@/context/TractorContext";
 export default function AddTractorScreen() {
   const router = useRouter();
 
-  const { setTractors, loading: contextLoading } = useTractors();
+  // ✅ Fixed: Destructure 'karkhanas' so the list isn't undefined
+  const { setTractors, loading: contextLoading, karkhanas } = useTractors();
 
   const [saving, setSaving] = useState(false);
 
+  // Form State
   const [plateNumber, setPlateNumber] = useState("");
   const [modelName, setModelName] = useState("");
   const [driverName, setDriverName] = useState("");
   const [driverPhone, setDriverPhone] = useState("");
   const [mukadamName, setMukadamName] = useState("");
   const [mukadamPhone, setMukadamPhone] = useState("");
+
+  // Factory Selection State
+  const [showFactoryPicker, setShowFactoryPicker] = useState(false);
+  const [selectedKarkhanaId, setSelectedKarkhanaId] = useState<number | null>(null);
+  const [selectedKarkhanaName, setSelectedKarkhanaName] = useState("");
 
   const primaryColor = Colors.light?.emerald800 || "#065f46";
 
@@ -53,7 +60,20 @@ export default function AddTractorScreen() {
     setPlateNumber(formatted);
   };
 
+  const handleFactorySelect = (factory: any) => {
+    setSelectedKarkhanaId(factory.id);
+    setSelectedKarkhanaName(factory.name);
+    setShowFactoryPicker(false);
+  };
+
   const handleSave = async () => {
+    // 1. Validate Factory Selection
+    if (!selectedKarkhanaId) {
+      Alert.alert("निवड आवश्यक", "कृपया आधी कारखाना निवडा (Select Factory)");
+      return;
+    }
+
+    // 2. Validate Text Fields
     if (
       !plateNumber ||
       !modelName ||
@@ -68,9 +88,11 @@ export default function AddTractorScreen() {
 
     setSaving(true);
     try {
+      // 3. Include karkhanaId in payload
       const newTractor = (await TractorService.create({
         plateNumber,
         modelName,
+        karkhanaId: selectedKarkhanaId, // ✅ Important: Link tractor to factory
         driver: { name: driverName, phone: driverPhone },
         mukadam: { name: mukadamName, phone: mukadamPhone },
       })) as Tractor | null;
@@ -82,6 +104,8 @@ export default function AddTractorScreen() {
             ...newTractor,
             driverName: newTractor.driver?.name || "No Driver",
             mukadamName: newTractor.mukadam?.name || "No Mukadam",
+            // Helper to prevent UI crashes if backend doesn't return the full object immediately
+            karkhana: karkhanas.find(k => k.id === selectedKarkhanaId),
             trips: [],
             expenses: [],
             lastTrip: null,
@@ -100,6 +124,69 @@ export default function AddTractorScreen() {
       setSaving(false);
     }
   };
+
+  const renderFactoryModal = () => (
+    <Modal
+      visible={showFactoryPicker}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowFactoryPicker(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              कारखाना निवडा (Select Factory)
+            </Text>
+            <TouchableOpacity onPress={() => setShowFactoryPicker(false)}>
+              <MaterialCommunityIcons name="close" size={24} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={karkhanas || []} // Safety check
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.factoryItem,
+                  selectedKarkhanaId === item.id && styles.factoryItemActive,
+                ]}
+                onPress={() => handleFactorySelect(item)}
+              >
+                <View style={styles.factoryIconBox}>
+                  <Text style={styles.factoryIconText}>
+                    {item.name.charAt(0)}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.factoryItemText,
+                    selectedKarkhanaId === item.id &&
+                      styles.factoryItemTextActive,
+                  ]}
+                >
+                  {item.name}
+                </Text>
+                {selectedKarkhanaId === item.id && (
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={20}
+                    color={primaryColor}
+                  />
+                )}
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <Text style={{ textAlign: "center", padding: 20, color: "#94A3B8" }}>
+                कोणताही कारखाना उपलब्ध नाही. आधी कारखाना जोडा.
+              </Text>
+            }
+          />
+        </View>
+      </View>
+    </Modal>
+  );
 
   const renderHeader = (
     <>
@@ -152,6 +239,50 @@ export default function AddTractorScreen() {
         contentContainerStyle={styles.form}
         showsVerticalScrollIndicator={false}
       >
+        {/* Render the Modal (invisible until clicked) */}
+        {renderFactoryModal()}
+
+        {/* SECTION 1: FACTORY SELECTION */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>असाइनमेंट (ASSIGNMENT)</Text>
+          <View style={styles.card}>
+            <Text style={styles.label}>
+              कोणत्या कारखान्यासाठी? (Select Factory){" "}
+              <Text style={{ color: "#EF4444" }}>*</Text>
+            </Text>
+
+            <TouchableOpacity
+              style={styles.selectButton}
+              onPress={() => setShowFactoryPicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.selectContent}>
+                <View style={styles.inputIcon}>
+                  <MaterialCommunityIcons
+                    name="domain"
+                    size={20}
+                    color={selectedKarkhanaName ? primaryColor : "#64748B"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.selectText,
+                    !selectedKarkhanaName && { color: "#94A3B8" },
+                  ]}
+                >
+                  {selectedKarkhanaName || "कारखाना निवडा..."}
+                </Text>
+              </View>
+              <MaterialCommunityIcons
+                name="chevron-down"
+                size={24}
+                color="#94A3B8"
+                style={{ marginRight: 12 }}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={[styles.iconCircle, { backgroundColor: "#ECFDF5" }]}>
@@ -277,6 +408,7 @@ export default function AddTractorScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: primaryColor }]}
@@ -304,7 +436,8 @@ export default function AddTractorScreen() {
 }
 
 const styles = StyleSheet.create({
-  form: { padding: 16, paddingBottom: 64 },
+  // ✅ Increased padding bottom to 120 so content scrolls above the footer
+  form: { padding: 16, paddingBottom: 120 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   card: {
     backgroundColor: "#fff",
@@ -351,18 +484,6 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     fontWeight: "500",
   },
-  saveButton: {
-    flexDirection: "row",
-    padding: 18,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-  },
-  saveText: { color: "#fff", fontSize: 18, fontWeight: "bold", marginLeft: 10 },
   footer: {
     position: "absolute",
     bottom: 0,
@@ -373,6 +494,8 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     borderTopWidth: 1,
     borderTopColor: "#ccd0d4ff",
+    elevation: 10, // Shadow for Android
+    zIndex: 10,    // Layer order for iOS
   },
   actionButton: {
     flexDirection: "row",
@@ -387,4 +510,78 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginLeft: 8,
   },
+  section: { marginBottom: 24 },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#64748B",
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  label: { fontSize: 12, fontWeight: "600", color: "#475569", marginBottom: 6 },
+
+  selectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    height: 50,
+  },
+  selectContent: { flexDirection: "row", alignItems: "center" },
+  inputIcon: { paddingHorizontal: 12 },
+  selectText: { fontSize: 15, fontWeight: "600", color: "#1E293B" },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: "60%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#1E293B" },
+  factoryItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  factoryItemActive: {
+    backgroundColor: "#F0FDF4",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 0,
+  },
+  factoryIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#E2E8F0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  factoryIconText: { fontWeight: "700", color: "#475569" },
+  factoryItemText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  factoryItemTextActive: { color: "#065f46", fontWeight: "800" },
 });

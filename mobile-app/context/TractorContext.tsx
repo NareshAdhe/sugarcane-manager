@@ -6,22 +6,26 @@ import React, {
   useCallback,
 } from "react";
 import * as SecureStore from "expo-secure-store";
-import { Tractor, TractorService, AuthService, UserService } from "@/services/api";
+import { 
+  Tractor, 
+  Karkhana, 
+  TractorService, 
+  KarkhanaService,
+  UserService
+} from "@/services/api";
 
-interface UserSettings {
+interface UserProfile {
   name: string;
   email: string;
-  defaultDieselRate: number;
-  defaultVahatukRateShort: number;
-  defaultVahatukRateLong: number;
-  defaultTodniRate: number;
 }
 
 interface TractorContextType {
   tractors: Tractor[];
   setTractors: React.Dispatch<React.SetStateAction<Tractor[]>>;
-  userSettings: UserSettings | null;
-  setUserSettings: React.Dispatch<React.SetStateAction<UserSettings | null>>;
+  karkhanas: Karkhana[];
+  setKarkhanas: React.Dispatch<React.SetStateAction<Karkhana[]>>;
+  userProfile: UserProfile | null;
+  setUserProfile: React.Dispatch<React.SetStateAction<UserProfile | null>>;
   loading: boolean;
   error: boolean;
   isLoggedIn: boolean;
@@ -33,7 +37,8 @@ const TractorContext = createContext<TractorContextType | undefined>(undefined);
 
 export function TractorProvider({ children }: { children: React.ReactNode }) {
   const [tractors, setTractors] = useState<Tractor[]>([]);
-  const [userSettings, setUserSettings] = useState<UserSettings | null>(null); // ✅ Initialize settings
+  const [karkhanas, setKarkhanas] = useState<Karkhana[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -42,12 +47,14 @@ export function TractorProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       try {
         const token = await SecureStore.getItemAsync("userToken");
-        setIsLoggedIn(!!token);
+        if (token) {
+          setIsLoggedIn(true);
+        } else {
+          setLoading(false);
+        }
       } catch (e) {
         console.log("Auth check failed", e);
-      } finally {
-        const token = await SecureStore.getItemAsync("userToken");
-        if (!token) setLoading(false);
+        setLoading(false);
       }
     };
     initializeAuth();
@@ -59,14 +66,16 @@ export function TractorProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(false);
-      
-      const [tractorData, settingsData] = await Promise.all([
+
+      const [tractorData, karkhanaData, profileData] = await Promise.all([
         TractorService.getAll(),
-        UserService.getSettings()
+        KarkhanaService.getAll(),
+        UserService.getSettings(),
       ]);
 
       if (tractorData) setTractors(tractorData);
-      if (settingsData) setUserSettings(settingsData);
+      if (karkhanaData) setKarkhanas(karkhanaData);
+      if (profileData) setUserProfile(profileData);
 
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -92,8 +101,10 @@ export function TractorProvider({ children }: { children: React.ReactNode }) {
       value={{
         tractors,
         setTractors,
-        userSettings,
-        setUserSettings,
+        karkhanas,
+        setKarkhanas,
+        userProfile,
+        setUserProfile,
         loading,
         error,
         refreshData,

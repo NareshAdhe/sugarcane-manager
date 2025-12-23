@@ -10,6 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   ScrollView,
+  StatusBar,
   Image,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -85,6 +86,10 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
+      <StatusBar 
+        barStyle="dark-content"
+        backgroundColor="#ffffff"
+      />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.card}>
           <Image

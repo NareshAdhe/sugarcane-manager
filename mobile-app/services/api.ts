@@ -2,6 +2,18 @@ import { Alert } from "react-native";
 import api from "./apiConfig";
 import * as SecureStore from "expo-secure-store";
 
+export interface Karkhana {
+  id: number;
+  name: string;
+  todniRate: number;
+  distanceThreshold: number;
+  vahatukRateShort: number;
+  vahatukRateLong: number;
+  todniCommRate: number;
+  vahatukCommRate: number;
+  dieselRate: number;
+}
+
 export interface TripData {
   id: number;
   tractorId: number;
@@ -12,7 +24,8 @@ export interface TripData {
   cuttingIncome: number;
   transportIncome: number;
   dieselLiters: number;
-  commission: number;
+  cuttingCommission: number;
+  transportCommission: number;
   dieselCost: number;
   netTripProfit: number;
 }
@@ -53,6 +66,7 @@ export interface Tractor {
   id: number;
   plateNumber: string;
   modelName?: string;
+  karkhana?: Karkhana;
   driverName?: string;
   mukadamName?: string;
 
@@ -78,10 +92,6 @@ export interface Tractor {
 export interface UserSettings {
   name: string;
   email: string;
-  defaultDieselRate: number;
-  defaultVahatukRateShort: number;
-  defaultVahatukRateLong: number;
-  defaultTodniRate: number;
 }
 
 export type TractorDetail = Tractor;
@@ -240,6 +250,24 @@ export const AuthService = {
     }
     return response.data;
   },
+};
+
+export const KarkhanaService = {
+  getAll: async (): Promise<Karkhana[]> => {
+    const response = await api.get("/api/karkhana");
+    return response.data.data;
+  },
+  create: async (data: Partial<Karkhana>): Promise<Karkhana> => {
+    const response = await api.post("/api/karkhana", data);
+    return response.data.data;
+  },
+  update: async (id: number, data: Partial<Karkhana>): Promise<Karkhana> => {
+    const response = await api.put(`/api/karkhana/${id}`, data);
+    return response.data.data;
+  },
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/api/karkhana/${id}`);
+  }
 };
 
 export const UserService = {

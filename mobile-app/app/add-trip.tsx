@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -19,10 +19,6 @@ import { Tractor, TractorService, TripData } from "@/services/api";
 
 import { useTractors } from "@/context/TractorContext";
 
-// Constants
-const DIESEL_RATE = 72.5;
-const CUTTING_RATE = 365;
-
 export default function AddTripScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -31,7 +27,6 @@ export default function AddTripScreen() {
     tractors,
     loading: contextLoading,
     setTractors,
-    userSettings,
   } = useTractors();
 
   const [selectedTractorId, setSelectedTractorId] = useState<number | null>(
@@ -46,11 +41,17 @@ export default function AddTripScreen() {
   const [weight, setWeight] = useState("");
   const [distance, setDistance] = useState("");
   const [diesel, setDiesel] = useState("");
-  const [bonus, setBonus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditMode = params.editMode === "true";
   const primaryColor = Colors.light?.emerald800 || "#2b8a3e";
+
+  // --- 1. GET CURRENT TRACTOR & FACTORY DATA ---
+  const activeTractor = useMemo(() => {
+    return tractors.find((t) => t.id === selectedTractorId) || null;
+  }, [selectedTractorId, tractors]);
+
+  const activeFactory = activeTractor?.karkhana || null;
 
   useEffect(() => {
     if (isEditMode) {
@@ -58,7 +59,6 @@ export default function AddTripScreen() {
       setWeight((params.weight as string) || "");
       setDistance((params.distance as string) || "");
       setDiesel((params.diesel as string) || "");
-      setBonus((params.bonus as string) || "");
       setSelectedTractorId(Number(params.tractorId));
     } else if (params.preSelectedId) {
       const exists = tractors.find(
@@ -68,116 +68,149 @@ export default function AddTripScreen() {
     }
   }, [params.editMode, tractors]);
 
-  // Calculations
-  const weightNum = parseFloat(weight) || 0;
-  const distanceNum = parseFloat(distance) || 0;
-  const dieselNum = parseFloat(diesel) || 0;
-  const bonusNum = parseFloat(bonus) || 0;
+  // --- 2. CALCULATIONS (Memoized for immediate updates) ---
+  const calculation = useMemo(() => {
+    // Default values if no factory assigned
+    const currentTodniRate = activeFactory?.todniRate || 0;
+    const currentDieselRate = activeFactory?.dieselRate || 0;
+    const threshold = activeFactory?.distanceThreshold || 25;
+    
+    // Parse Inputs
+    const weightNum = parseFloat(weight) || 0;
+    const distanceNum = parseFloat(distance) || 0;
+    const dieselNum = parseFloat(diesel) || 0;
 
-  const DIESEL_RATE = userSettings?.defaultDieselRate || 0;
-  const CUTTING_RATE = userSettings?.defaultTodniRate || 0;
+    // A. Transport Rate Logic (Tiered)
+    const isLongDistance = distanceNum > threshold;
+    const transportRate = isLongDistance 
+      ? (activeFactory?.vahatukRateLong || 0)
+      : (activeFactory?.vahatukRateShort || 0);
 
-  const transportRate =
-    distanceNum > 25
-      ? userSettings?.defaultVahatukRateLong || 0
-      : userSettings?.defaultVahatukRateShort || 0;
+    // B. Gross Income
+    const cuttingIncome = weightNum * currentTodniRate;
+    const transportIncome = weightNum * transportRate;
+    
+    // C. Deductions - Diesel
+    const dieselCost = dieselNum * currentDieselRate;
+    
+    // D. Deductions - Commissions
+    const todniCommPercent = activeFactory?.todniCommRate || 0;
+    const transportCommPercent = activeFactory?.vahatukCommRate || 0;
 
-  const cuttingIncome = weightNum * CUTTING_RATE;
-  const transportIncome = weightNum * transportRate;
-  const dieselCost = dieselNum * DIESEL_RATE;
-  const netTripProfit = cuttingIncome + transportIncome + bonusNum - dieselCost;
+    const todniCommAmount = cuttingIncome * (todniCommPercent / 100);
+    const transportCommAmount = transportIncome * (transportCommPercent / 100);
+    const totalCommission = todniCommAmount + transportCommAmount;
+
+    // E. Net Profit
+    const netTripProfit = cuttingIncome + transportIncome - dieselCost + totalCommission;
+
+    return {
+      weightNum,
+      distanceNum,
+      dieselNum,
+      cuttingIncome,
+      transportIncome,
+      dieselCost,
+      todniCommAmount,
+      transportCommAmount,
+      todniCommPercent,
+      transportCommPercent,
+      totalCommission,
+      netTripProfit,
+      isLongDistance,
+      currentTodniRate, 
+      transportRate
+    };
+  }, [weight, distance, diesel, activeFactory]);
+
 
   const handleSubmit = async () => {
-    if (!selectedTractorId || !slipNumber || !weight) {
+    if (!selectedTractorId || !slipNumber || !weight || !distance) {
       Alert.alert(
         "माहिती अपूर्ण आहे",
-        "कृपया ट्रॅक्टर, स्लिप नंबर आणि वजन निवडा."
+        "कृपया ट्रॅक्टर, स्लिप नंबर, वजन आणि अंतर भरा."
       );
+      return;
+    }
+
+    if (!activeFactory) {
+      Alert.alert("त्रुटी", "निवडलेल्या ट्रॅक्टरला कारखाना जोडलेला नाही.");
       return;
     }
 
     const tripPayload = {
       tractorId: selectedTractorId,
       slipNumber,
-      netWeight: weightNum,
-      distance: distanceNum,
-      dieselLiters: dieselNum,
-      cuttingIncome,
-      transportIncome,
-      commission: bonusNum,
-      dieselCost,
-      netTripProfit,
+      netWeight: calculation.weightNum,
+      distance: calculation.distanceNum,
+      dieselLiters: calculation.dieselNum,
+      cuttingIncome: calculation.cuttingIncome,
+      transportIncome: calculation.transportIncome,
+      cuttingCommission: calculation.todniCommAmount,
+      transportCommission: calculation.transportCommAmount,
+      dieselCost: calculation.dieselCost,
+      netTripProfit: calculation.netTripProfit,
+      date: new Date().toISOString(),
     };
 
     try {
       setIsSubmitting(true);
 
+      let savedTrip: TripData | null = null;
+
       if (isEditMode && params.tripId) {
-        const updatedTrip: TripData | null = await TractorService.updateTrip(
+        savedTrip = await TractorService.updateTrip(
           Number(params.tripId),
           tripPayload
         );
-
-        if (updatedTrip) {
-          setTractors((prev) =>
-            prev.map((t) => {
-              if (t.id === selectedTractorId) {
-                const updatedTrips = t.trips.map((tr) =>
-                  tr.id === updatedTrip.id ? updatedTrip : tr
-                );
-
-                return {
-                  ...t,
-                  trips: updatedTrips,
-                  // ✅ जर अपडेट केलेली ट्रिप हीच शेवटची (latest) ट्रिप असेल, तर ती सुद्धा अपडेट करा
-                  lastTrip:
-                    t.lastTrip?.id === updatedTrip.id
-                      ? {
-                          id: updatedTrip.id,
-                          weight: updatedTrip.netWeight,
-                          date: updatedTrip.date,
-                          profit: updatedTrip.netTripProfit,
-                        }
-                      : t.lastTrip,
-                };
-              }
-              return t;
-            })
-          );
-          Alert.alert("यशस्वी", "ट्रिप जतन केली!", [
-            { text: "OK", onPress: () => router.back() },
-          ]);
-        }
       } else {
-        const savedTrip = (await TractorService.addTrip(
-          tripPayload
-        )) as TripData | null;
+        savedTrip = await TractorService.addTrip(tripPayload);
+      }
 
-        if (savedTrip) {
-          setTractors((prevTractors: Tractor[]) =>
-            prevTractors.map((t: Tractor): Tractor => {
-              if (t.id === selectedTractorId) {
-                return {
-                  ...t,
-                  trips: [savedTrip, ...(t.trips || [])],
-                  lastTrip: {
-                    id: savedTrip.id,
-                    weight: savedTrip.netWeight,
-                    date: savedTrip.date,
-                    profit: savedTrip.netTripProfit,
-                  },
-                };
+      if (savedTrip) {
+        setTractors((prev) =>
+          prev.map((t) => {
+            if (t.id === selectedTractorId) {
+              // 1. Update trips list
+              const updatedTrips = isEditMode
+                ? t.trips.map((tr) => (tr.id === savedTrip!.id ? savedTrip! : tr))
+                : [savedTrip!, ...t.trips];
+
+              // 2. Update Last Trip (Fixing Type Error)
+              let updatedLastTrip = t.lastTrip;
+              
+              if (!isEditMode) {
+                 // New trip is always latest
+                 updatedLastTrip = {
+                    id: savedTrip!.id,
+                    weight: savedTrip!.netWeight,     // Map netWeight -> weight
+                    date: savedTrip!.date,
+                    profit: savedTrip!.netTripProfit  // Map netTripProfit -> profit
+                 };
+              } else if (t.lastTrip?.id === savedTrip!.id) {
+                 // Editing the most recent trip
+                 updatedLastTrip = {
+                    id: savedTrip!.id,
+                    weight: savedTrip!.netWeight,
+                    date: savedTrip!.date,
+                    profit: savedTrip!.netTripProfit
+                 };
               }
-              return t;
-            })
-          );
 
-          Alert.alert("यशस्वी", "ट्रिप जतन केली!", [
-            { text: "OK", onPress: () => router.back() },
-          ]);
-        } else {
-          Alert.alert("त्रुटी", "सर्व्हरने माहिती स्वीकारली नाही.");
-        }
+              return {
+                ...t,
+                trips: updatedTrips,
+                lastTrip: updatedLastTrip
+              };
+            }
+            return t;
+          })
+        );
+        Alert.alert("यशस्वी", "ट्रिप जतन केली!", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      } else {
+        Alert.alert("त्रुटी", "सर्व्हरने माहिती स्वीकारली नाही.");
       }
     } catch (error) {
       console.error(error);
@@ -292,7 +325,7 @@ export default function AddTripScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {Strings.driver}: {tractor.driverName}
+                    {tractor.karkhana?.name || "No Factory"}
                   </Text>
                 </TouchableOpacity>
               );
@@ -323,7 +356,9 @@ export default function AddTripScreen() {
               />
             </View>
           </View>
+          
           <View style={styles.divider} />
+          
           <View style={styles.row}>
             <View style={[styles.inputContainer, { flex: 1, marginRight: 12 }]}>
               <Text style={styles.label}>
@@ -371,9 +406,12 @@ export default function AddTripScreen() {
               </View>
             </View>
           </View>
+          
           <View style={styles.divider} />
+          
+          {/* Diesel Row - Now Full Width since Bonus is gone, or keep it consistent */}
           <View style={styles.row}>
-            <View style={[styles.inputContainer, { flex: 1, marginRight: 12 }]}>
+            <View style={[styles.inputContainer, { flex: 1 }]}>
               <Text style={styles.label}>
                 {Strings.diesel || "डिझेल"} (Ltr){" "}
                 <Text style={{ color: "red" }}>*</Text>
@@ -394,68 +432,66 @@ export default function AddTripScreen() {
                 />
               </View>
             </View>
-            <View style={[styles.inputContainer, { flex: 1 }]}>
-              <Text style={styles.label}>
-                Bonus (₹) <Text style={{ color: "red" }}>*</Text>
-              </Text>
-              <View style={styles.inputWrapper}>
-                <MaterialCommunityIcons
-                  name="gift"
-                  size={20}
-                  color="#888"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  keyboardType="decimal-pad"
-                  value={bonus}
-                  onChangeText={setBonus}
-                />
-              </View>
-            </View>
           </View>
         </View>
 
-        {/* 3. RECEIPT PREVIEW */}
+        {/* 3. RECEIPT PREVIEW (ESTIMATE) */}
         <View style={styles.receiptCard}>
           <Text style={styles.receiptTitle}>अंदाजित पावती (ESTIMATE)</Text>
           <View style={styles.dashedLine} />
+          
+          {/* Incomes */}
           <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>तोडणी उत्पन्न</Text>
-            <Text style={styles.receiptValue}>
-              ₹ {cuttingIncome.toLocaleString()}
+            <Text style={styles.receiptLabel}>तोडणी उत्पन्न ({calculation.currentTodniRate} ₹)</Text>
+            <Text style={[styles.receiptValue, { color: "#2E7D32" }]}>
+             + ₹ {calculation.cuttingIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </Text>
           </View>
+          
           <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>वाहतूक उत्पन्न</Text>
-            <Text style={styles.receiptValue}>
-              ₹ {transportIncome.toLocaleString()}
+            <Text style={styles.receiptLabel}>वाहतूक उत्पन्न ({calculation.transportRate} ₹)</Text>
+            <Text style={[styles.receiptValue, { color: "#2E7D32" }]}>
+             + ₹ {calculation.transportIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </Text>
           </View>
-          {bonusNum > 0 && (
-            <View style={styles.receiptRow}>
-              <Text style={styles.receiptLabel}>बोनस</Text>
-              <Text style={[styles.receiptValue, { color: "#2E7D32" }]}>
-                + ₹ {bonusNum}
-              </Text>
-            </View>
-          )}
-          {dieselNum > 0 && (
+
+          {/* Diesel Deduction */}
+          {calculation.dieselNum > 0 && (
             <View style={styles.receiptRow}>
               <Text style={styles.receiptLabel}>
-                डिझेल खर्च ({dieselNum} Ltr)
+                डिझेल खर्च ({activeFactory?.dieselRate} ₹)
               </Text>
               <Text style={[styles.receiptValue, { color: "#C62828" }]}>
-                - ₹ {dieselCost.toLocaleString()}
+                - ₹ {calculation.dieselCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </Text>
             </View>
           )}
+
+          {/* Commission Deductions (Breakdown) */}
+          {activeFactory && (
+            <>
+                <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>तोडणी कमिशन ({calculation.todniCommPercent}%)</Text>
+                    <Text style={[styles.receiptValue, { color: "#2E7D32" }]}>
+                    + ₹ {calculation.todniCommAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </Text>
+                </View>
+                <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>वाहतूक कमिशन ({calculation.transportCommPercent}%)</Text>
+                    <Text style={[styles.receiptValue, { color: "#2E7D32" }]}>
+                    + ₹ {calculation.transportCommAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </Text>
+                </View>
+            </>
+          )}
+
           <View style={styles.solidLine} />
+          
+          {/* Net Profit */}
           <View style={styles.receiptRow}>
             <Text style={styles.totalLabel}>एकूण नफा</Text>
             <Text style={[styles.totalValue, { color: primaryColor }]}>
-              ₹ {(Strings.netProfit = netTripProfit.toLocaleString())}
+              ₹ {calculation.netTripProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </Text>
           </View>
         </View>

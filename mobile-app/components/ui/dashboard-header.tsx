@@ -4,7 +4,6 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors } from "@/constants/theme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useTractors } from "@/context/TractorContext";
 
 interface DashboardHeaderProps {
   title: string;
@@ -13,30 +12,13 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
   const router = useRouter();
-  const { userSettings } = useTractors();
 
   const primaryColor = Colors.light?.emerald800 || "#065f46";
   const secondaryColor = "#064e3b";
 
-  const RateInfoBox = ({
-    icon,
-    label,
-    value,
-  }: {
-    icon: any;
-    label: string;
-    value: string | number;
-  }) => (
-    <View style={styles.rateBox}>
-      <View style={styles.iconCircle}>
-        <MaterialCommunityIcons name={icon} size={16} color={primaryColor} />
-      </View>
-      <View style={styles.rateTextContainer}>
-        <Text style={styles.rateLabel}>{label}</Text>
-        <Text style={styles.rateValue}>₹{value}</Text>
-      </View>
-    </View>
-  );
+  const handleNavigateToSettings = () => {
+    router.push("/settings");
+  };
 
   return (
     <View style={styles.outerContainer}>
@@ -55,7 +37,7 @@ export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
           <View style={styles.rightActions}>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => router.push("/settings")}
+              onPress={handleNavigateToSettings}
               style={styles.iconButton}
             >
               <MaterialCommunityIcons
@@ -73,38 +55,24 @@ export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
             </View>
           </View>
         </View>
-      </LinearGradient>
 
-      {/* FLOATING RATES CARD */}
-      <View style={styles.ratesCard}>
-        {/* Wrap rates in a row-direction view */}
-        <View style={styles.ratesRow}>
-          <RateInfoBox
-            icon="gas-station"
-            label="डिझेल"
-            value={userSettings?.defaultDieselRate || 0}
+        {/* Note Section (Marathi) */}
+        <TouchableOpacity 
+          style={styles.noteContainer} 
+          activeOpacity={0.8}
+          onPress={handleNavigateToSettings}
+        >
+          <MaterialCommunityIcons 
+            name="information-outline" 
+            size={14} 
+            color="rgba(255, 255, 255, 0.9)" 
           />
-          <View style={styles.verticalDivider} />
-          <RateInfoBox
-            icon="truck-delivery"
-            label="वाहतूक"
-            value={userSettings?.defaultVahatukRateShort || 0}
-          />
-          <View style={styles.verticalDivider} />
-          <RateInfoBox
-            icon="tools"
-            label="तोडणी"
-            value={userSettings?.defaultTodniRate || 0}
-          />
-        </View>
-
-        {/* ✅ PLACE THE NOTE HERE (Under the rates row) */}
-        <View style={styles.settingsNote}>
           <Text style={styles.noteText}>
-            * दर (Rates) बदलण्यासाठी सेटिंग्ज वापरा !!
+            कारखाने जोडण्यासाठी सेटिंग्जमध्ये जा !!
           </Text>
-        </View>
-      </View>
+        </TouchableOpacity>
+
+      </LinearGradient>
     </View>
   );
 }
@@ -116,7 +84,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     paddingTop: 48,
     paddingHorizontal: 20,
-    paddingBottom: 50,
+    paddingBottom: 40, 
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
   },
@@ -124,6 +92,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 16, 
   },
   textContainer: { flex: 1 },
   title: {
@@ -168,69 +137,22 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "rgba(255, 255, 255, 0.3)",
   },
-  rateBox: {
+  noteContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  iconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#ecfdf5",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  rateTextContainer: {
-    justifyContent: "center",
-  },
-  rateLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#64748b",
-    textTransform: "uppercase",
-  },
-  rateValue: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#1e293b",
-  },
-  verticalDivider: {
-    width: 1,
-    height: 25,
-    backgroundColor: "#e2e8f0",
-  },
-  ratesCard: {
-    backgroundColor: "#ffffff",
-    marginHorizontal: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+    alignSelf: "flex-start",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 20,
-    padding: 15,
-    marginTop: -40,
-    elevation: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    gap: 6,
     borderWidth: 1,
-    borderColor: "#f0f0f0",
-  },
-  ratesRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    width: "100%",
-  },
-  settingsNote: {
-    marginTop: 10,
-    paddingTop: 8,
-    paddingHorizontal: 2,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
-    alignItems: "center",
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   noteText: {
-    fontSize: 9,
-    color: "#dc2626",
-    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 2, 
   },
 });

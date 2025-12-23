@@ -122,7 +122,8 @@ export default function TractorDetailScreen() {
         acc.totalDieselCost += t.dieselCost || 0;
         acc.netProfit += t.netTripProfit || 0;
         acc.tripCount += 1;
-        acc.totalBonus += t.commission || 0;
+        acc.totalTodniCommission += t.cuttingCommission || 0;
+        acc.totalVahatukCommission += t.transportCommission || 0;
         return acc;
       },
       {
@@ -133,6 +134,8 @@ export default function TractorDetailScreen() {
         netProfit: 0,
         tripCount: 0,
         totalBonus: 0,
+        totalTodniCommission: 0,
+        totalVahatukCommission: 0,
       }
     );
   }, [allTrips]);
@@ -511,6 +514,59 @@ export default function TractorDetailScreen() {
             </View>
 
             <View style={styles.statsRow}>
+              {/* Todni Commission */}
+              <View
+                style={[
+                  styles.statBox,
+                  { backgroundColor: "#FBE9E7", borderColor: "#FFCCBC" },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statIconCircle,
+                    { backgroundColor: "#FFCCBC" },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="content-cut"
+                    size={20}
+                    color="#D84315"
+                  />
+                </View>
+                <Text style={styles.statLabel}>तोडणी कमिशन</Text>
+                <Text style={[styles.statValue, { color: "#D84315" }]}>
+                  + {Strings.currency}
+                  {totals.totalTodniCommission.toLocaleString()}
+                </Text>
+              </View>
+              {/* Vahatuk Commission (Pink Theme) */}
+              <View
+                style={[
+                  styles.statBox,
+                  { backgroundColor: "#FCE4EC", borderColor: "#F8BBD0" },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statIconCircle,
+                    { backgroundColor: "#F8BBD0" },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="truck-fast"
+                    size={20}
+                    color="#AD1457"
+                  />
+                </View>
+                <Text style={styles.statLabel}>वाहतूक कमिशन</Text>
+                <Text style={[styles.statValue, { color: "#AD1457" }]}>
+                  + {Strings.currency}
+                  {totals.totalVahatukCommission.toLocaleString()}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.statsRow}>
               <View
                 style={[
                   styles.statBox,
@@ -534,37 +590,6 @@ export default function TractorDetailScreen() {
                   {totals.tripCount.toLocaleString()}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.statBox,
-                  {
-                    flex: 1,
-                    backgroundColor: "#FCE4EC",
-                    borderColor: "#F8BBD0",
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.statIconCircle,
-                    { backgroundColor: "#F8BBD0" },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="gift"
-                    size={20}
-                    color="#AD1457"
-                  />
-                </View>
-                <Text style={styles.statLabel}>{Strings.totalBonus}</Text>
-                <Text style={[styles.statValue, { color: "#AD1457" }]}>
-                  {Strings.currency}
-                  {totals.totalBonus.toLocaleString()}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.statsRow}>
               <View
                 style={[
                   styles.statBox,

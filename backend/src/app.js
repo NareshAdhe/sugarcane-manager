@@ -8,6 +8,7 @@ const tripRoutes = require('./routes/tripRoutes');
 const authRoutes = require('./routes/authRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
 const userRoutes = require('./routes/userRoutes');
+const karkhanaRoutes = require('./routes/karkhanaRoutes');
 const { authenticate } = require('./middleware/authMiddleware');
 
 const app = express();
@@ -18,10 +19,11 @@ app.use(express.json());
 
 // Register Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/tractors',authenticate, tractorRoutes);
+app.use('/api/tractors', authenticate, tractorRoutes);
 app.use('/api/trips', authenticate, tripRoutes);
 app.use('/api/expenses', authenticate, expenseRoutes);
-app.use('/api/user',authenticate,userRoutes);
+app.use('/api/user', authenticate, userRoutes);
+app.use('/api/karkhana', authenticate, karkhanaRoutes);
 
 app.get('/', (req, res) => {
   res.send('Sugarcane Manager API is Running 🚀');
