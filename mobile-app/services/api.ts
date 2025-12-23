@@ -225,14 +225,14 @@ export const AuthService = {
   },
 
   login: async (email: string) => {
-    const response = await api.post(`/api/auth/login`, { email });
-    return response.data;
+      const response = await api.post(`/api/auth/login`, { email });
+      return response.data;
   },
 
   verifyOTP: async (otp: string, otpToken: string) => {
     const response = await api.post(`/api/auth/verify-otp`, {
       otp: otp.trim(),
-      otpToken
+      otpToken,
     });
 
     if (response.data.token) {
@@ -256,4 +256,4 @@ export const UserService = {
     const response = await api.put("/api/user/settings", settings);
     return response.data;
   },
-}
+};

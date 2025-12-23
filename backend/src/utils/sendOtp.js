@@ -1,19 +1,21 @@
-const transporter = require("../utils/mailer.js");
+const apiInstance = require("../utils/mailer.js");
 const otpContent = require("./otpFormat.js");
 const jwt = require("jsonwebtoken");
+const Brevo = require('@getbrevo/brevo');
 
 const sendOTPEmail = async (name, to, otp, res) => {
   try {
     const htmlContent = otpContent(name, otp);
 
-    const mailOptions = {
-      from: process.env.SENDER_MAIL,
-      to,
-      subject: `Your verification code`,
-      html: htmlContent,
-    };
+    let sendSmtpEmail = new Brevo.SendSmtpEmail();
 
-    await transporter.sendMail(mailOptions);
+    sendSmtpEmail.subject = "तुमचा पडताळणी कोड (Your Verification Code)";
+    sendSmtpEmail.htmlContent = htmlContent;
+    
+    sendSmtpEmail.sender = { "name": "Sugarcane Manager", "email": process.env.SENDER_MAIL };
+    sendSmtpEmail.to = [{ "email": to }];
+
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
 
     const token = jwt.sign(
       { email: to, purpose: "otp_verification" }, 
@@ -28,18 +30,11 @@ const sendOTPEmail = async (name, to, otp, res) => {
     });
 
   } catch (error) {
-    console.error("Error in sendOTPEmail utility:", error);
+    console.error("Error in Brevo API:", error.response?.body || error.message);
     
-    if (error.code === 'EAUTH') {
-      return res.status(500).json({
-        success: false,
-        message: "Email configuration error. Please contact support.",
-      });
-    }
-
     return res.status(500).json({
       success: false,
-      message: "सर्व्हरमध्ये तांत्रिक अडचण आली आहे.",
+      message: "ईमेल पाठवण्यात अडचण आली. कृपया नंतर प्रयत्न करा.",
     });
   }
 };
