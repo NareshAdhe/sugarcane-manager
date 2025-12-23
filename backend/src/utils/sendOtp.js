@@ -9,7 +9,7 @@ const sendOTPEmail = async (name, to, otp, res) => {
     const mailOptions = {
       from: process.env.SENDER_MAIL,
       to,
-      subject: `${otp} is your verification code`,
+      subject: `Your verification code`,
       html: htmlContent,
     };
 

@@ -62,7 +62,7 @@ const otpContent = (name,otp) => {
     </div>
     <div class="footer">
       <p>Thank you for using our service!</p>
-      <p><strong>GROOMIO</strong></p>
+      <p><strong>Tractor Manager</strong></p>
     </div>
   </div>
 </body>
