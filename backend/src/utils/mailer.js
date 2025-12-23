@@ -1,10 +1,12 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: process.env.BREVO_SMTP_HOST,
+  port: process.env.BREVO_SMTP_PORT,
+  secure: false,
   auth: {
-    user: process.env.SMTP_USER, 
-    pass: process.env.SMTP_PASS, 
+    user: process.env.BREVO_SMTP_USER,
+    pass: process.env.BREVO_SMTP_KEY,
   },
 });
 

@@ -7,7 +7,7 @@ const sendOTPEmail = async (name, to, otp, res) => {
     const htmlContent = otpContent(name, otp);
 
     const mailOptions = {
-      from: `"Tractor Manager" <${process.env.SMTP_USER}>`,
+      from: process.env.SENDER_MAIL,
       to,
       subject: `${otp} is your verification code`,
       html: htmlContent,
